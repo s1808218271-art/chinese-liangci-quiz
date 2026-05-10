@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中文量词小游戏 (Chinese Measure Words Quiz)</title>
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --success: #2ECC71;
+            --danger: #E74C3C;
+            --bg: #F4F7F6;
+            --text: #333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+            color: #7f8c8d;
+        }
+
+        .emoji-display {
+            font-size: 5rem;
+            margin-bottom: 10px;
+            animation: bounceIn 0.5s ease;
+        }
+
+        .question-box {
+            margin-bottom: 30px;
+        }
+
+        .noun {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--text);
+            margin: 0;
+        }
+
+        .pinyin {
+            font-size: 1.2rem;
+            color: #95a5a6;
+            margin-top: 5px;
+        }
+
+        .formula {
+            font-size: 1.5rem;
+            margin-top: 15px;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .option-btn {
+            background: #fff;
+            border: 2px solid #e0e6ed;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text);
+            font-weight: bold;
+        }
+
+        .option-btn:hover {
+            border-color: var(--primary);
+            background: #f0f7ff;
+            transform: translateY(-2px);
+        }
+
+        .option-btn:disabled {
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .option-btn.correct {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+            animation: pulse 0.5s;
+        }
+
+        .option-btn.wrong {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+            animation: shake 0.5s;
+        }
+
+        .next-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 30px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.3s;
+            display: none;
+        }
+
+        .next-btn:hover {
+            background: #357ABD;
+        }
+
+        /* Animations */
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .completion-screen {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="game-container">
+        <!-- 游戏界面 -->
+        <div id="quiz-screen">
+            <div class="header">
+                <span id="progress">1 / 10</span>
+                <span id="score">得分: 0</span>
+            </div>
+
+            <div class="question-box">
+                <div class="emoji-display" id="emoji">🍎</div>
+                <h2 class="noun" id="noun">苹果</h2>
+                <div class="pinyin" id="pinyin">píng guǒ</div>
+                <div class="formula">
+                    一 <span id="blank">___</span> <span id="noun-display">苹果</span>
+                </div>
+            </div>
+
+            <div class="options-grid" id="options">
+                <!-- 按钮通过 JS 动态生成 -->
+            </div>
+
+            <button class="next-btn" id="next-btn" onclick="nextQuestion()">下一题 (Next)</button>
+        </div>
+
+        <!-- 结算界面 -->
+        <div class="completion-screen" id="completion-screen">
+            <div class="emoji-display">🎉</div>
+            <h2 class="noun">太棒了！</h2>
+            <p class="pinyin" style="margin-bottom: 30px;">练习完成</p>
+            <h1 style="color: var(--primary); font-size: 3rem; margin: 20px 0;" id="final-score">100%</h1>
+            <button class="next-btn" style="display: block;" onclick="restartGame()">再玩一次 (Play Again)</button>
+        </div>
+    </div>
+
+    <script>
+        // 词库数据 (你可以随时在这里添加或修改词汇)
+        const allQuestions = [
+            { noun: "苹果", pinyin: "píng guǒ", emoji: "🍎", mw: "个", options: ["个", "本", "只", "条"] },
+            { noun: "书", pinyin: "shū", emoji: "📖", mw: "本", options: ["张", "本", "辆", "支"] },
+            { noun: "狗", pinyin: "gǒu", emoji: "🐶", mw: "只", options: ["条", "只", "本", "个"] },
+            { noun: "鱼", pinyin: "yú", emoji: "🐟", mw: "条", options: ["件", "条", "只", "双"] },
+            { noun: "车", pinyin: "chē", emoji: "🚗", mw: "辆", options: ["辆", "台", "个", "本"] },
+            { noun: "笔", pinyin: "bǐ", emoji: "✏️", mw: "支", options: ["张", "支", "把", "个"] },
+            { noun: "纸", pinyin: "zhǐ", emoji: "📄", mw: "张", options: ["本", "张", "条", "个"] },
+            { noun: "鞋", pinyin: "xié", emoji: "👟", mw: "双", options: ["双", "只", "件", "个"] },
+            { noun: "衣服", pinyin: "yī fu", emoji: "👕", mw: "件", options: ["条", "张", "件", "把"] },
+            { noun: "椅子", pinyin: "yǐ zi", emoji: "🪑", mw: "把", options: ["个", "台", "张", "把"] },
+            { noun: "水", pinyin: "shuǐ", emoji: "💧", mw: "杯", options: ["杯", "只", "条", "本"] },
+            { noun: "手机", pinyin: "shǒu jī", emoji: "📱", mw: "部", options: ["个", "部", "辆", "支"] }
+        ];
+
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        const totalQuestions = 8; // 每次练习抽取8道题
+
+        // DOM 元素
+        const emojiEl = document.getElementById('emoji');
+        const nounEl = document.getElementById('noun');
+        const pinyinEl = document.getElementById('pinyin');
+        const blankEl = document.getElementById('blank');
+        const nounDisplayEl = document.getElementById('noun-display');
+        const optionsEl = document.getElementById('options');
+        const nextBtn = document.getElementById('next-btn');
+        const progressEl = document.getElementById('progress');
+        const scoreEl = document.getElementById('score');
+        
+        const quizScreen = document.getElementById('quiz-screen');
+        const completionScreen = document.getElementById('completion-screen');
+        const finalScoreEl = document.getElementById('final-score');
+
+        // 打乱数组 (Fisher-Yates 洗牌算法)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 初始化游戏
+        function initGame() {
+            // 随机抽取指定数量的题目
+            let shuffled = shuffleArray([...allQuestions]);
+            questions = shuffled.slice(0, totalQuestions);
+            
+            currentQuestionIndex = 0;
+            score = 0;
+            updateScoreDisplay();
+            
+            quizScreen.style.display = 'block';
+            completionScreen.style.display = 'none';
+            
+            loadQuestion();
+        }
+
+        // 加载当前题目
+        function loadQuestion() {
+            const currentQ = questions[currentQuestionIndex];
+            
+            // 更新 UI
+            progressEl.textContent = `${currentQuestionIndex + 1} / ${totalQuestions}`;
+            emojiEl.textContent = currentQ.emoji;
+            nounEl.textContent = currentQ.noun;
+            pinyinEl.textContent = currentQ.pinyin;
+            nounDisplayEl.textContent = currentQ.noun;
+            
+            // 重置填空区和按钮
+            blankEl.textContent = "___";
+            blankEl.style.color = "var(--primary)";
+            nextBtn.style.display = "none";
+            optionsEl.innerHTML = '';
+
+            // 重新触发 Emoji 动画
+            emojiEl.style.animation = 'none';
+            emojiEl.offsetHeight; /* 触发重绘 */
+            emojiEl.style.animation = 'bounceIn 0.5s ease';
+
+            // 打乱并渲染选项
+            const shuffledOptions = shuffleArray([...currentQ.options]);
+            
+            shuffledOptions.forEach(opt => {
+                const button = document.createElement('button');
+                button.className = 'option-btn';
+                button.textContent = opt;
+                button.onclick = () => checkAnswer(opt, currentQ.mw, button);
+                optionsEl.appendChild(button);
+            });
+        }
+
+        // 检查答案
+        function checkAnswer(selected, correct, button) {
+            const buttons = document.querySelectorAll('.option-btn');
+            
+            // 禁用所有按钮
+            buttons.forEach(btn => btn.disabled = true);
+            
+            if (selected === correct) {
+                button.classList.add('correct');
+                blankEl.textContent = selected;
+                blankEl.style.color = "var(--success)";
+                score += 10;
+                updateScoreDisplay();
+            } else {
+                button.classList.add('wrong');
+                blankEl.textContent = correct;
+                blankEl.style.color = "var(--danger)";
+                
+                // 标出正确答案
+                buttons.forEach(btn => {
+                    if (btn.textContent === correct) {
+                        btn.classList.add('correct');
+                    }
+                });
+            }
+            
+            nextBtn.style.display = "block";
+        }
+
+        function updateScoreDisplay() {
+            scoreEl.textContent = `得分: ${score}`;
+        }
+
+        // 下一题或结算
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < totalQuestions) {
+                loadQuestion();
+            } else {
+                showCompletion();
+            }
+        }
+
+        // 显示结算画面
+        function showCompletion() {
+            quizScreen.style.display = 'none';
+            completionScreen.style.display = 'block';
+            const percentage = Math.round((score / (totalQuestions * 10)) * 100);
+            finalScoreEl.textContent = `${percentage}%`;
+        }
+
+        // 重新开始
+        function restartGame() {
+            initGame();
+        }
+
+        // 启动游戏
+        initGame();
+    </script>
+</body>
+</html>
